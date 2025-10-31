@@ -1,6 +1,13 @@
 template <typename Key, typename Val>
 HashTableOpen<Key, Val>::HashTableOpen(int i) {
     // TODO
+    if (i <= 0) i = 100;                  // if the street size is weird, build a street of 100 houses (safe default)
+    M = i;                                // M = how many mailboxes (houses) exist on our street
+    ht = new LinkedList<Record>*[M];      // build a row of M hooks, each hook will point to a tiny list (a mailbox's pile)
+
+    for (int idx = 0; idx < M; ++idx) {   // walk down the street, one house at a time
+        ht[idx] = new LinkedList<Record>(); // at each house, place an EMPTY little bucket (a linked list ready to hold letters)
+    }
 }
 
 template <typename Key, typename Val>
@@ -22,6 +29,15 @@ HashTableOpen<Key, Val>& HashTableOpen<Key, Val>::operator=
 template <typename Key, typename Val>
 HashTableOpen<Key, Val>::~HashTableOpen() {
     // TODO
+     if (ht != nullptr) {                          // do we have a street of houses (an array) to clean up?
+        for (int i = 0; i < M; ++i) {             // walk down the street, one house (bucket) at a time
+            delete ht[i];                         // knock down the tiny mailbox’s pile (delete the linked list object)
+            ht[i] = nullptr;                      // leave no dangling pointer string (no ghost rope)
+        }
+        delete[] ht;                              // finally remove the whole street of hooks (the array itself)
+        ht = nullptr;                             // set the street pointer to nothing (no treasure map left)
+    }
+  
 }
 
 template <typename Key, typename Val>
@@ -100,6 +116,19 @@ void HashTableOpen<Key, Val>::copy(const HashTableOpen<Key, Val>& copyObj) {
 template <typename Key, typename Val>
 Val HashTableOpen<Key, Val>::find(const Key& k) const {
     // TODO
+     int slot = hash(k);                    // turn the name (key) into a mailbox number: which house on the street?
+    const LinkedList<Record>* bucket = ht[slot]; // walk to that house and look at its little mail pile (the linked list)
+
+    int n = bucket->getLength();           // how many letters are in this pile?
+    for (int i = 0; i < n; ++i) {          // check each letter one by one
+        Record r = bucket->getElement(i);  // pull out the i-th letter to read its label
+        if (r.k == k) {                    // does the label (key) match the name we’re looking for?
+            return r.v;                    // yes! hand back the message inside the letter (the value)
+        }
+    }
+
+    // if we checked the whole pile and never found it, the letter isn't here
+    throw string("key not found");         // tell the caller: no such letter in this mailbox
 }
 
 template <typename Key, typename Val>
@@ -153,14 +182,49 @@ int HashTableOpen<Key, Val>::hash(const Key& k) const {
 template <typename Key, typename Val>
 void HashTableOpen<Key, Val>::insert(const Key& k, const Val& v) {
     // TODO
+    int slot = hash(k);                          // turn the key into a mailbox number (which house?)
+    LinkedList<Record>* bucket = ht[slot];       // walk to that house and look at its little bucket (linked list)
+
+    
+    // (Like finding a letter with the same name and swapping the message.)
+    int n = bucket->getLength();                 // how many letters are already in this bucket?
+    for (int i = 0; i < n; ++i) {                // check each letter in the bucket
+        Record r = bucket->getElement(i);        // pull out the i-th letter
+        if (r.k == k) {                          // same “name” (key)?
+            bucket->replace(i, Record(k, v));    // replace that letter with the new message (value)
+            return;                              // done!
+        }
+    }
+
+    // If not found, just drop a fresh letter at the end. 
+    bucket->append(Record(k, v));                // add a new letter (key, value) to this mailbox’s pile
 }
 
 template <typename Key, typename Val>
 void HashTableOpen<Key, Val>::remove(const Key& k) {
     // TODO
+    int slot = hash(k);                          // which mailbox should this letter be in?
+    LinkedList<Record>* bucket = ht[slot];       // go to that mailbox’s pile (the linked list)
+
+    int n = bucket->getLength();                 // how many letters are in this pile?
+    for (int i = 0; i < n; ++i) {                // scan each letter, one by one
+        Record r = bucket->getElement(i);        // peek at the i-th letter
+        if (r.k == k) {                          // found the matching name?
+            bucket->remove(i);                   // take that letter out of the pile (remove the node)
+            return;                              // done!
+        }
+    }
+
+    // If we finish the scan without finding it, that key doesn't live here.
+    throw string("key not found");               // tell the caller we couldn’t find the letter to remove
 }
 
 template <typename Key, typename Val>
 int HashTableOpen<Key, Val>::size() const {
     // TODO
+    int total = 0;                               // start with an empty count (no letters yet)
+    for (int i = 0; i < M; ++i) {                // walk down the street, visiting every mailbox
+        total += ht[i]->getLength();             // add how many letters are in this house’s pile
+    }
+    return total;                                // total number of letters (records) across ALL mailboxes
 }
